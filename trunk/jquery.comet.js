@@ -42,7 +42,7 @@
 
 			this._send($.comet._sUrl, oMsg, function(sReturn)
 			{
-				var oReturn = eval(sReturn);
+				var oReturn = (typeof sReturn != "object") ? (eval('(' + sReturn + ')')) : sReturn;
 				$.comet._bPolling = false;
 				$.comet.deliver(oReturn);
 				$.comet._oTransport.closeTunnel();
@@ -87,10 +87,11 @@
 			{
 				var msgConnect = 
 				{
-					jsonp: 'test',
+					//jsonp: 'test',
 					clientId: $.comet.clientId,
 					id: $.comet._nNextId++,
-					channel: '/meta/connect'
+					channel: '/meta/connect',
+					connectionType: $.comet._oTransport.connectionType
 				};
 				$.comet._oTransport.openTunnel(msgConnect);
 			}
@@ -100,7 +101,7 @@
 			//default callback will check advice, deliver messages, and reconnect
 			var fCallback = (fCallback) ? fCallback : function(sReturn)
 			{
-				var oReturn = eval(sReturn);
+				var oReturn = (typeof sReturn != "object") ? (eval('(' + sReturn + ')')[0]) : sReturn[0];
 
 				$.comet.deliver(oReturn);
 
@@ -123,7 +124,7 @@
 					$.comet._oTransport._connect();
 				}
 			};
-			
+
 			//regular AJAX for same domain calls
 			if((!this._bXD) && (this.connectionType == 'long-polling'))
 			{
@@ -149,7 +150,7 @@
 				});
 			}
 		}
-	};
+};
 
 	$.comet = new function()
 	{
@@ -160,6 +161,7 @@
 
 		this._aMessageQueue = [];
 		this._aSubscriptions = [];
+		this._aSubscriptionCallbacks = [];
 		this._bInitialized = false;
 		this._bConnected = false;
 		this._nBatch = 0;
@@ -168,9 +170,11 @@
 		this._oTransport = ''; //oTransport;
 		this._sUrl = '';
 
-		this.supportedConnectionTypes = [ 'long-polling', 'callback-polling' ];
+		this.supportedConectionTypes = [ 'long-polling', 'callback-polling' ];
 
 		this.clientId = '';
+
+		this._bTrigger = true; // this sends $.event.trigger(channel, data)
 
 		this.init = function(sUrl)
 		{
@@ -183,20 +187,19 @@
 			this._bInitialized = true;
 			this.startBatch();
 
-			var oMsg = $.extend(msgHandshake, {id: this._nNextId++, supportedConnectionTypes: this.supportedConnectionTypes});
+			var oMsg = $.extend(msgHandshake, {id: this._nNextId++});
 
 			this._oTransport._send(this._sUrl, oMsg, $.comet._finishInit);
 		};
 
 		this._finishInit = function(sReturn)
 		{
-			var oReturn = eval(sReturn)[0];
+			var oReturn = (typeof sReturn != "object") ? (eval('(' + sReturn + ')')[0]) : sReturn[0];
 
 			if(oReturn.advice)
 				$.comet._advice = oReturn.advice;
-			
-			var bSuccess = (oReturn.successful) ? oReturn.successful : false;
 
+			var bSuccess = (oReturn.successful) ? oReturn.successful : false;
 			// do version check
 
 			if(bSuccess)
@@ -209,8 +212,9 @@
 
 				$.comet.clientId = oReturn.clientId;
 				$.comet._oTransport.startup(oReturn);
+				$.comet.endBatch();
 			}
-		}
+		};
 
 		this._sendMessage = function(oMsg)
 		{
@@ -227,7 +231,7 @@
 					oMsg.clientId = $.comet.clientId;
 					oMsg.id = $.comet._nNextId++;
 				}
-				
+
 				$.comet._oTransport._send($.comet._sUrl, oMsg);
 			}
 			else
@@ -253,10 +257,15 @@
 			if(!this._aSubscriptions[sSubscription])
 			{
 				this._aSubscriptions.push(sSubscription)
+
+				if (fCallback) {
+					this._aSubscriptionCallbacks[sSubscription] = fCallback;
+				}
+
 				this._sendMessage({ channel: '/meta/subscribe', subscription: sSubscription });
 			}
 
-			//$.event.add(this, sSubscription, fCallback);
+			//$.event.add(window, sSubscription, fCallback);
 		};
 
 		this.unsubscribe = function(sSubscription) {
@@ -270,11 +279,11 @@
 
 		this.deliver = function(sReturn)
 		{
-			var oReturn = eval(sReturn);
+			var oReturn = sReturn;//eval(sReturn);
 
 			$(oReturn).each(function()
 			{
-				$.comet._deliver(this);
+					$.comet._deliver(this);
 			});
 		};
 
@@ -296,7 +305,7 @@
 			{
 				$.comet._advice = oMsg.advice;
 			}
-			
+
 			switch(oMsg.channel)
 			{
 				case '/meta/connect':
@@ -304,12 +313,15 @@
 					{
 						$.comet._bConnected = $.comet._bInitialized;
 						$.comet.endBatch();
+					/*
+					   $.comet._sendMessage(msgConnect);
+					*/
 					}
 					else
 					{}
 						//$.comet._bConnected = false;
 				break;
-				
+
 				// add in subscription handling stuff
 				case '/meta/subscribe':
 				break;
@@ -319,12 +331,19 @@
 
 			}
 
-			if(oMsg.data)
+		if(oMsg.data)
+		{
+			if($.comet._bTrigger)
 			{
 				$.event.trigger(oMsg.channel, [oMsg]);
 			}
-		};
+
+			var cb = $.comet._aSubscriptionCallbacks[oMsg.channel];
+			if (cb) {
+				cb(oMsg);
+			}
+		}
 	};
+};
 
 })(jQuery);
-
