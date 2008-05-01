@@ -141,6 +141,7 @@
 				$.ajax({
 					url: sUrl,
 					dataType: 'jsonp',
+					jsonp: 'jsonp',
 					beforeSend: function(oXhr) { oXhr.setRequestHeader('Connection', 'Keep-Alive'); },
 					data: 
 					{ 
