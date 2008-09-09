@@ -29,7 +29,7 @@
 			{
 				channel: '/meta/connect',
 				clientId: $.comet.clientId, 
-				id: $.comet._nNextId++,
+				id: String($.comet._nNextId++),
 				connectionType: $.comet._oTransport.connectionType
 			};
 
@@ -89,7 +89,7 @@
 				{
 					//jsonp: 'test',
 					clientId: $.comet.clientId,
-					id: $.comet._nNextId++,
+					id: String($.comet._nNextId++),
 					channel: '/meta/connect',
 					connectionType: $.comet._oTransport.connectionType
 				};
@@ -101,7 +101,7 @@
 			//default callback will check advice, deliver messages, and reconnect
 			var fCallback = (fCallback) ? fCallback : function(sReturn)
 			{
-				var oReturn = (typeof sReturn != "object") ? (eval('(' + sReturn + ')')[0]) : sReturn[0];
+				var oReturn = (typeof sReturn != "object") ? (eval('(' + sReturn + ')')) : sReturn;
 
 				$.comet.deliver(oReturn);
 
@@ -188,7 +188,7 @@
 			this._bInitialized = true;
 			this.startBatch();
 
-			var oMsg = $.extend(msgHandshake, {id: this._nNextId++});
+			var oMsg = $.extend(msgHandshake, {id: String(this._nNextId++)});
 
 			this._oTransport._send(this._sUrl, oMsg, $.comet._finishInit);
 		};
@@ -224,13 +224,13 @@
 				if(oMsg.length > 0)
 					for(var i in oMsg)
 					{
-						oMsg[i].id = $.comet._nNextId++;
-						oMsg[i].clientId = $.comet.clientId;
+						oMsg[i].clientId = String($.comet.clientId);
+						oMsg[i].id = String($.comet._nNextId++);
 					}
 				else
 				{
-					oMsg.clientId = $.comet.clientId;
-					oMsg.id = $.comet._nNextId++;
+					oMsg.clientId = String($.comet.clientId);
+					oMsg.id = String($.comet._nNextId++);
 				}
 
 				$.comet._oTransport._send($.comet._sUrl, oMsg);
