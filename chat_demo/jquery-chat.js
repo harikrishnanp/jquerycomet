@@ -51,7 +51,8 @@ jQuery(function($) {
 		var altServer = $('#altServer').val();
 		var loc = (altServer.length > 0) ?
 			altServer :
-			(new String(document.location).replace(/http:\/\/[^\/]*/, '').replace(/\/examples\/.*$/, '')) + "/cometd";
+			document.location.protocol + "//" + document.location.hostname + ":" + document.location.port + "/cometd";
+		console.log(loc);
 
 		$.comet.init(loc);
 		// For x-domain test change line above to:
