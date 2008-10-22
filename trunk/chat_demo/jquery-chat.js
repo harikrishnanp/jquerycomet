@@ -13,7 +13,7 @@ jQuery(function($) {
 	function init() {
 		$("#join").show();
 		$("#joined").hide();
-		$('#username').focus();
+		$('#phrase').focus();
 		$('#altServer').attr('autocomplete', 'OFF');
 		
 		$("#joinB").click(function(e){
@@ -52,6 +52,7 @@ jQuery(function($) {
 		var loc = (altServer.length > 0) ?
 			altServer :
 			document.location.protocol + "//" + document.location.hostname + ":" + document.location.port + "/cometd";
+                loc = "http://localhost:8080/cometd";
 		console.log(loc);
 
 		$.comet.init(loc);
@@ -75,18 +76,18 @@ jQuery(function($) {
 		
 		// handle cometd failures while in the room
 		if (meta) {
-			$.comet.unsubscribe(meta, null, null);
+			$.comet.unsubscribe(meta);
 		}
-		meta = $.comet.subscribe("/cometd/meta", this, function(e){
+		meta = $.comet.subscribe("/cometd/meta", function(e){
 			// console.debug(e);
 			if (e.action == "handshake") {
 				if (e.reestablish) {
 					if (e.successful) {
 						$.comet.subscribe("/chat/demo", receive);
 						$.comet.publish("/chat/demo", {
-							user: room._username,
+							user: username,
 							join: true,
-							chat: room._username + " has re-joined"
+							chat: username + " has re-joined"
 						});
 					}
 					receive({
@@ -137,17 +138,29 @@ jQuery(function($) {
 		});
 	}
 	function receive(message) {
-		var chat = $('#chat');
 		if (!message.data) {
 			window.console && console.warn("bad message format " + message);
 			return;
 		}
-		var from = message.data.user;
-		var special = message.data.join || message.data.leave;
-		var text = message.data.chat;
-		if (!text) {
-			return;
+
+		if (message.data instanceof Array)
+                {
+			var list="";
+			for (var i in message.data)
+				list+=message.data[i]+"<br/>";
+			$('#members').html(list);
 		}
+                else
+                {
+			var chat = $('#chat');
+
+			var from = message.data.user;
+			var special = message.data.join || message.data.leave;
+			var text = message.data.chat;
+			if (!text)
+                        {
+				return;
+                        }
 		
 		if (!special && from == last) {
 			from = "...";
@@ -166,6 +179,7 @@ jQuery(function($) {
 		}
 		// TODO rewrite with jQuery methods
 		chat[0].scrollTop = chat[0].scrollHeight - chat[0].clientHeight;
+                }
 	}
 	function leave() {
 		if (!username) {
@@ -192,5 +206,6 @@ jQuery(function($) {
 		$('#username').focus();
 		username = null;
 		$.comet.disconnect();
+                $('#members').html("");
 	}
 })

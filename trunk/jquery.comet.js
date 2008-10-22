@@ -128,7 +128,7 @@
 			//regular AJAX for same domain calls
 			if((!this._bXD) && (this.connectionType == 'long-polling'))
 			{
-				$.ajax({
+				this._pollRequest = $.ajax({
 					url: sUrl,
 					type: 'post',
 					beforeSend: function(oXhr) { oXhr.setRequestHeader('Connection', 'Keep-Alive'); },
@@ -138,7 +138,7 @@
 			}
 			else // JSONP callback for cross domain
 			{
-				$.ajax({
+				this._pollRequest = $.ajax({
 					url: sUrl,
 					dataType: 'jsonp',
 					jsonp: 'jsonp',
@@ -151,7 +151,7 @@
 				});
 			}
 		}
-};
+        };
 
 	$.comet = new function()
 	{
@@ -244,11 +244,14 @@
 
 		this.startBatch = function() { this._nBatch++ };
 		this.endBatch = function() {
-			if(--this._nBatch == 0)
+			if(--this._nBatch <= 0)
 			{
-				this._sendMessage(this._aMessageQueue);
-
-				this._aMessageQueue = [];
+				this._nBatch = 0;
+				if(this._aMessageQueue.length > 0)
+				{
+					this._sendMessage(this._aMessageQueue);
+					this._aMessageQueue = [];
+				}
 			}
 		};
 
@@ -325,9 +328,19 @@
 
 				// add in subscription handling stuff
 				case '/meta/subscribe':
+                                        if(!oMsg.successful)
+                                        {
+                                                $.comet._oTransport._cancelConnect();
+                                                return;
+                                        }
 				break;
 
 				case '/meta/unsubscribe':
+                                        if(!oMsg.successful)
+                                        {
+                                                $.comet._oTransport._cancelConnect();
+                                                return;
+                                        }
 				break;
 
 			}
